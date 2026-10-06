@@ -104,13 +104,13 @@ The public website and documentation frontend are maintained in
 
 ### Tooling and packaging
 
-| Repository                                                                     | Purpose                                                                              |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| [bitty-plugin-manager](https://github.com/bitty-terminal/bitty-plugin-manager) | External plugin package-manager candidate. Metadata-only; no installer exists        |
-| [bitty-compat-lab](https://github.com/bitty-terminal/bitty-compat-lab)         | External compatibility-suite candidate. Metadata-only; no fixtures or tests migrated |
-| [bitty-perf](https://github.com/bitty-terminal/bitty-perf)                     | External performance-suite candidate. Metadata-only; no benchmarks migrated          |
-| [scoop-bucket](https://github.com/bitty-terminal/scoop-bucket)                 | Scoop packaging channel for the Bitty terminal                                       |
-| [homebrew-tap](https://github.com/bitty-terminal/homebrew-tap)                 | Homebrew packaging channel for the Bitty terminal                                    |
+| Repository                                                                     | Purpose                                                                                                                   |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| [bitty-plugin-manager](https://github.com/bitty-terminal/bitty-plugin-manager) | External plugin package-manager candidate. Metadata-only; no installer exists                                             |
+| [bitty-compat-lab](https://github.com/bitty-terminal/bitty-compat-lab)         | External compatibility validation suite. Suite migrated 2026-10-04 (6887d08); landed, acceptance and verification pending |
+| [bitty-perf](https://github.com/bitty-terminal/bitty-perf)                     | External performance validation suite. Suite migrated 2026-10-04 (73aa233); landed, acceptance and verification pending   |
+| [scoop-bucket](https://github.com/bitty-terminal/scoop-bucket)                 | Scoop packaging channel for the Bitty terminal                                                                            |
+| [homebrew-tap](https://github.com/bitty-terminal/homebrew-tap)                 | Homebrew packaging channel for the Bitty terminal                                                                         |
 
 ### Archive and research
 

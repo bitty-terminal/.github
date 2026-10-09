@@ -1,27 +1,32 @@
 # Bitty
 
-**A programmable terminal platform built around a small Rust core and a composable extension ecosystem.**
+**A programmable, microkernel terminal emulator built around a small Rust core and a two-tiered extension architecture.**
 
-> Small core. Stable interfaces. Everything composable.
+> Mechanism, not policy. Small core. Everything composable.
 
 Bitty explores what a terminal can become when the terminal emulator itself
-provides only the essential mechanisms, while plugins, panels, tools, and AI
-compose the user experience on top.
+provides only the essential mechanisms, while upstream infrastructure crates
+and downstream plugins compose the user experience on top.
 
-It is designed to stay useful as a minimal terminal while remaining extensible
-enough to grow into a deeply customized development environment.
+Inspired by Neovim's architecture, Bitty strictly separates mechanism from
+policy to avoid the "Emacs operating system trap" — keeping the terminal runtime
+lean, blisteringly fast, and deeply programmable without turning into an
+in-process operating system.
 
-## What Bitty is
+## Architecture
 
 - **Small Rust core** — [bitty](https://github.com/bitty-terminal/bitty) owns
-  the terminal mechanisms: PTY, VT parsing, GPU rendering, sessions, and
-  panels. Everything else lives outside the core.
-- **Rust extensions** — optional capabilities (networking, IPC, observability,
-  execution, graphics, accessibility, storage) are developed as independent
-  crates behind accepted contracts. The core never depends on them silently.
-- **Lua plugins** — user-facing features (command palette, statusline, file
-  manager, git panel, developer tools) are plugins written against the public
-  host API, running on a sandboxed Lua runtime.
+  the essential terminal mechanisms: PTY management, VT parsing, GPU rendering
+  (`wgpu`), viewport/grid objects, and event hooks. Everything else lives
+  outside the core.
+- **Upstream Rust core extensions (L1)** — optional, reusable infrastructure
+  capabilities (networking, IPC, platform notifications, URL detection,
+  execution supervisor) developed as independent crates behind accepted
+  contracts. The core never depends on them silently.
+- **Downstream Lua plugins (L2)** — user-facing features and workflows
+  (statuslines, palettes, file pickers, Git panels) written in pure Lua against
+  the public host API, running inside an isolated
+  [Phodopus](https://github.com/bitty-terminal/phodopus) sandbox runtime.
 - **Independent AI sub-platform** —
   [bitty-ai](https://github.com/bitty-terminal/bitty-ai) develops the model,
   context, agent, and tool runtime separately from the terminal core.
@@ -35,29 +40,26 @@ enough to grow into a deeply customized development environment.
 | [bitty](https://github.com/bitty-terminal/bitty)       | Terminal runtime: PTY, VT parsing, GPU rendering, sessions, and panels                                                |
 | [phodopus](https://github.com/bitty-terminal/phodopus) | Pure-Rust stackless Lua runtime: sandboxing, fuel, and modular stdlib. Pre-adoption; not yet the active Bitty runtime |
 
-### AI
+### Upstream Rust core extensions
 
-| Repository                                                   | Purpose                                                                                                                                           |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [bitty-ai](https://github.com/bitty-terminal/bitty-ai)       | AI subsystem: model providers, context providers, agent runtime, and tool bus. Experimental and pre-alpha, docs-first                             |
-| [bitty-agent](https://github.com/bitty-terminal/bitty-agent) | AI agent protocol layer: messages, tool-call stubs, observations, and bounded queues. Pre-1.0; contract accepted, implementation not yet verified |
+Optional, decoupled capabilities developed behind accepted contracts.
 
-### Rust core extensions
-
-Optional Rust capabilities developed outside the terminal core. Each one is
-consumed only through its accepted contract.
-
-| Repository                                                                   | Purpose                                                                                                                                               |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [bitty-network](https://github.com/bitty-terminal/bitty-network)             | Shared optional network runtime (API plus implementation). Default-off                                                                                |
-| [bitty-ipc](https://github.com/bitty-terminal/bitty-ipc)                     | Generic out-of-process IPC bridge: DevTools and MCP protocols, bounded framing, and peer-credential auth. Pre-1.0                                     |
-| [bitty-observability](https://github.com/bitty-terminal/bitty-observability) | Read-only observation seam: API, bounded buffering, filtering, and redaction helpers. Pre-1.0; not consumed by the core yet                           |
-| [bitty-execution](https://github.com/bitty-terminal/bitty-execution)         | Execution supervisor: job lifetime, cancellation, process resources, and recovery. Landed and independently verified                                  |
-| [bitty-graphics](https://github.com/bitty-terminal/bitty-graphics)           | Bounded graphics decode (PNG-only) plus raster mechanics. Landed and independently verified                                                           |
-| [bitty-a11y](https://github.com/bitty-terminal/bitty-a11y)                   | Accessibility adapter: snapshot, handle, focus, and action core with a headless backend. Landed and independently verified                            |
-| [bitty-storage](https://github.com/bitty-terminal/bitty-storage)             | Bounded isolated storage mechanics: snapshots, atomic commits, per-plugin key-value backend, and transcript descriptors. Landed; verification pending |
+| Repository                                                                           | Purpose                                                                                                                                               |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [bitty-network](https://github.com/bitty-terminal/bitty-network)                     | Shared optional network runtime (API plus implementation). Default-off                                                                                |
+| [bitty-ipc](https://github.com/bitty-terminal/bitty-ipc)                             | Generic out-of-process IPC bridge: DevTools and MCP protocols, bounded framing, and peer-credential auth. Pre-1.0                                     |
+| [bitty-platform-services](https://github.com/bitty-terminal/bitty-platform-services) | Platform notification bridge (Linux D-Bus, macOS notification center, Windows Toast), fail-closed                                                     |
+| [bitty-url-detector](https://github.com/bitty-terminal/bitty-url-detector)           | Pure-algorithm plaintext URL detector (bitty#1760; scanner over `&str`, no terminal/GPU types)                                                        |
+| [bitty-execution](https://github.com/bitty-terminal/bitty-execution)                 | Execution supervisor: job lifetime, cancellation, process resources, and recovery. Landed and independently verified                                  |
+| [bitty-graphics](https://github.com/bitty-terminal/bitty-graphics)                   | Bounded graphics decode (PNG-only) plus raster mechanics. Landed and independently verified                                                           |
+| [bitty-a11y](https://github.com/bitty-terminal/bitty-a11y)                           | Accessibility adapter: snapshot, handle, focus, and action core with a headless backend. Landed and independently verified                            |
+| [bitty-storage](https://github.com/bitty-terminal/bitty-storage)                     | Bounded isolated storage mechanics: snapshots, atomic commits, per-plugin key-value backend, and transcript descriptors. Landed; verification pending |
+| [bitty-observability](https://github.com/bitty-terminal/bitty-observability)         | Read-only observation seam: API, bounded buffering, filtering, and redaction helpers. Pre-1.0; not consumed by the core yet                           |
 
 ### Plugin platform
+
+The downstream plugin ecosystem. All official and community Lua plugins live
+and register through the plugin directory.
 
 | Repository                                                                       | Purpose                                                                                    |
 | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
@@ -65,70 +67,57 @@ consumed only through its accepted contract.
 | [bitty-plugin-sdk](https://github.com/bitty-terminal/bitty-plugin-sdk)           | Plugin SDK: manifest validation, Lua API declarations, mock host, and conformance fixtures |
 | [bitty-plugin-template](https://github.com/bitty-terminal/bitty-plugin-template) | Reproducible starting point and generator for new independent plugin repositories          |
 
-### Plugins
+### AI
 
-Independent repositories without the `bitty` prefix. Early-stage plugins are
-marked as such; nothing below is a finished product.
+| Repository                                                   | Purpose                                                                                                                                           |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [bitty-ai](https://github.com/bitty-terminal/bitty-ai)       | AI subsystem: model providers, context providers, agent runtime, and tool bus. Experimental and pre-alpha, docs-first                             |
+| [bitty-agent](https://github.com/bitty-terminal/bitty-agent) | AI agent protocol layer: messages, tool-call stubs, observations, and bounded queues. Pre-1.0; contract accepted, implementation not yet verified |
 
-| Repository                                                     | Purpose                                                                                                  |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [activity](https://github.com/bitty-terminal/activity)         | Privacy-first local activity timeline plugin                                                             |
-| [bar](https://github.com/bitty-terminal/bar)                   | Consolidated workspace bar, tabs, and statusline presentation over generic chrome insets                 |
-| [palette](https://github.com/bitty-terminal/palette)           | Command palette and picker UI through the overlay slot                                                   |
-| [statusline](https://github.com/bitty-terminal/statusline)     | Working-directory, mode, Git, and task presentation through the statusline slot                          |
-| [file-manager](https://github.com/bitty-terminal/file-manager) | Tiled-panel file listing, navigation, and preview                                                        |
-| [git-panel](https://github.com/bitty-terminal/git-panel)       | Tiled-panel Git branch, status, diff, and log presentation                                               |
-| [devtools](https://github.com/bitty-terminal/devtools)         | Read-only inspection and event tracing of the plugin runtime. Pre-release; not usable on a real host yet |
-| [wheel](https://github.com/bitty-terminal/wheel)               | Official agent-harness plugin (AI-owned). Pre-implementation scaffold                                    |
-| [composer](https://github.com/bitty-terminal/composer)         | Lua policy package for the modal command line over the public host API                                   |
-| [copy-mode](https://github.com/bitty-terminal/copy-mode)       | Lua policy package for modal copy mode over the public history snapshot API                              |
-| [history](https://github.com/bitty-terminal/history)           | Lua policy package for opt-in history reads over the public host API                                     |
-| [search](https://github.com/bitty-terminal/search)             | Lua policy package for bounded scrollback search over the public history API                             |
-| [beacon](https://github.com/bitty-terminal/beacon)             | Planning scaffold. No installable manifest or Lua implementation exists; not onboarded in the registry   |
+### Documentation & manual
 
-### Documentation
+Canonical documentation and user guides. Start from
+[bitty-docs](https://github.com/bitty-terminal/bitty-docs) for governance and
+architecture, or [bitty-manual](https://github.com/bitty-terminal/bitty-manual)
+for user guides and configuration.
 
-Canonical documentation is split by subsystem. Start from
-[bitty-docs](https://github.com/bitty-terminal/bitty-docs) for governance,
-decisions, security, and project state.
-
-| Repository                                                                   | Scope                                                    |
-| ---------------------------------------------------------------------------- | -------------------------------------------------------- |
-| [bitty-docs](https://github.com/bitty-terminal/bitty-docs)                   | Canonical governance: decisions, security, project state |
-| [bitty-terminal-docs](https://github.com/bitty-terminal/bitty-terminal-docs) | Terminal platform and core engineering                   |
-| [bitty-ai-docs](https://github.com/bitty-terminal/bitty-ai-docs)             | AI architecture and runtime                              |
-| [bitty-plugins-docs](https://github.com/bitty-terminal/bitty-plugins-docs)   | Plugin system and ecosystem                              |
-
-The public website and documentation frontend are maintained in
-[bitty-website](https://github.com/bitty-terminal/bitty-website).
+| Repository                                                                   | Scope                                                                                             |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [bitty-docs](https://github.com/bitty-terminal/bitty-docs)                   | Canonical governance: decisions, security, architecture, and project state                        |
+| [bitty-manual](https://github.com/bitty-terminal/bitty-manual)               | Canonical user manual, configuration reference, Lua API, and troubleshooting (English & 简体中文) |
+| [bitty-website](https://github.com/bitty-terminal/bitty-website)             | Public website and published documentation frontend ([bitty.run](https://bitty.run))              |
+| [bitty-terminal-docs](https://github.com/bitty-terminal/bitty-terminal-docs) | Terminal platform and core engineering documentation                                              |
+| [bitty-ai-docs](https://github.com/bitty-terminal/bitty-ai-docs)             | AI architecture and runtime documentation                                                         |
+| [bitty-plugins-docs](https://github.com/bitty-terminal/bitty-plugins-docs)   | Plugin system and ecosystem documentation                                                         |
 
 ### Tooling and packaging
 
 | Repository                                                                     | Purpose                                                                                                                   |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| [bitty-plugin-manager](https://github.com/bitty-terminal/bitty-plugin-manager) | External plugin package-manager candidate. Metadata-only; no installer exists                                             |
 | [bitty-compat-lab](https://github.com/bitty-terminal/bitty-compat-lab)         | External compatibility validation suite. Suite migrated 2026-10-04 (6887d08); landed, acceptance and verification pending |
 | [bitty-perf](https://github.com/bitty-terminal/bitty-perf)                     | External performance validation suite. Suite migrated 2026-10-04 (73aa233); landed, acceptance and verification pending   |
+| [bitty-plugin-manager](https://github.com/bitty-terminal/bitty-plugin-manager) | External plugin package-manager candidate. Metadata-only; no installer exists                                             |
 | [scoop-bucket](https://github.com/bitty-terminal/scoop-bucket)                 | Scoop packaging channel for the Bitty terminal                                                                            |
 | [homebrew-tap](https://github.com/bitty-terminal/homebrew-tap)                 | Homebrew packaging channel for the Bitty terminal                                                                         |
 
-### Archive and research
-
-| Repository                                                         | Purpose                                                                                                  |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| [bitty-mcp](https://github.com/bitty-terminal/bitty-mcp)           | Archived 2026-09-14. MCP functionality is covered by `bitty-ai`; kept read-only for history              |
-| [bitty-devtools](https://github.com/bitty-terminal/bitty-devtools) | Archived 2026-10-01. Superseded by the [devtools](https://github.com/bitty-terminal/devtools) Lua plugin |
-| [research](https://github.com/bitty-terminal/research)             | Design discussion records and code-review campaigns behind the docs corpora                              |
-
 ## Philosophy
 
-Bitty is built around a few ideas:
+Bitty is built around core design tenets:
 
-- **Small core** — keep the terminal runtime focused on fundamental mechanisms.
-- **Composable extensions** — features should be independently replaceable and reusable.
-- **Programmable by default** — configuration and extension are part of the platform, not afterthoughts.
-- **Keyboard first** — terminal workflows should remain fast without requiring pointer-driven interaction.
-- **Platform, not bundle** — Bitty defines primitives and interfaces; extensions decide the experience.
+- **Mechanism, not policy (inspired by Neovim)** — Keep the core focused on
+  fundamental mechanisms (PTY, grid, rendering, event hooks); extensions and
+  user configuration decide the experience.
+- **Microkernel boundaries, not an OS** — Avoid the "Emacs operating system
+  trap." Bitty stays a lean, fast, programmable terminal emulator, not an
+  in-process operating system.
+- **Two-tiered extension architecture** — Upstream Rust crates share
+  infrastructure mechanisms; downstream Lua plugins compose user workflows.
+- **Composable by design** — Features should be independently replaceable and
+  reusable.
+- **Programmable by default** — Configuration and extension are part of the
+  platform, not afterthoughts.
+- **Keyboard first** — Terminal workflows should remain fast without requiring
+  pointer-driven interaction.
 
 ## Project status
 
